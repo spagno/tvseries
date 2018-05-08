@@ -1,60 +1,41 @@
 #!/usr/bin/python
-import errno, os, re, shutil, zipfile, telepot, argparse
+import errno
+import os
+import re
+import shutil
+import zipfile
+import telepot
+import argparse
 
-class Formatter(object):
-    def __init__(self):
-        self.types = {}
-        self.htchar = '\t'
-        self.lfchar = '\n'
-        self.indent = 0
-        self.set_formater(object, self.__class__.format_object)
-        self.set_formater(dict, self.__class__.format_dict)
-        self.set_formater(list, self.__class__.format_list)
-        self.set_formater(tuple, self.__class__.format_tuple)
+import json
+import logging
+import logging.config
 
-    def set_formater(self, obj, callback):
-        self.types[obj] = callback
-
-    def __call__(self, value, **args):
-        for key in args:
-            setattr(self, key, args[key])
-        formater = self.types[type(value) if type(value) in self.types else object]
-        return formater(self, value, self.indent)
-
-    def format_object(self, value, indent):
-        return repr(value)
-
-    def format_dict(self, value, indent):
-        items = [
-            self.lfchar + self.htchar * (indent + 1) + repr(key) + ': ' +
-            (self.types[type(value[key]) if type(value[key]) in self.types else object])(self, value[key], indent + 1)
-            for key in value
-        ]
-        return '{%s}' % (','.join(items) + self.lfchar + self.htchar * indent)
-
-    def format_list(self, value, indent):
-        items = [
-            self.lfchar + self.htchar * (indent + 1) + (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
-            for item in value
-        ]
-        return '[%s]' % (','.join(items) + self.lfchar + self.htchar * indent)
-
-    def format_tuple(self, value, indent):
-        items = [
-            self.lfchar + self.htchar * (indent + 1) + (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
-            for item in value
-        ]
-        return '(%s)' % (','.join(items) + self.lfchar + self.htchar * indent)
+from formatter import Formatter
 
 dir_subs = '/store/sata/subs'
 dir_files = '/store/sata/torrent/downloads'
 dir_dest = '/store/data/Telefilm'
 output_file = '/home/download/puntate'
-deb_file = '/home/download/debug_puntate'
 exception_list = {'Castle.2009':'Castle','Tomorrow.People.US':'Tomorrow.People','House.of.Cards.2013':'House.of.Cards','house.of.cards.2013':'House.of.Cards','house.of.cards':'House.of.Cards','The.Flash':'The.Flash.2014', 'Shameless': 'Shameless.US','the.blacklist':'The.Blacklist','greys.anatomy':'Greys.Anatomy','the.flash':'The.Flash','games.of.thrones':'Games.of.Thrones','greys.anaomy':'Greys.Anatomy','Better.Call.Saul.US':'Better.Call.Saul','The.Librarians.US':'The.Librarians','Riverdale':'Riverdale.US','shameless.us':'Shameless.US'}
 excluded_ext = ['nfo', 'txt', 'jpg']
-debug_info = "true"
 regexp = re.compile('(.*)\.S([0-9]{1,2})E([0-9]{1,2})\.(.*)', re.I)
+
+LOGGER = logging.getLogger(__name__)
+
+
+# thanks gionnyboy - https://github.com/gionniboy/howisresolved
+
+def setup_logging(filepath="logging.json", log_level=logging.INFO):
+    if not os.path.exists(filepath):
+        LOGGER.error('no logging config file founded.')
+        sys.exit('Create logging.json config file and restart.')
+
+    with open(filepath, 'r') as fileconfig:
+        config = json.load(fileconfig)
+    logging.config.dictConfig(config)
+    LOGGER.info('LOGGING SETUP from JSON %s', filepath)
+    LOGGER.debug('LOGGING OK - path %s - level %s', filepath, log_level)
 
 def normalize_file(result, i, dest):
 	normalized = '.'.join(result.group(1,2,3))
@@ -106,19 +87,17 @@ def main():
 	pretty = Formatter()
 	to_move = set(files_list).intersection(set(subs_list))
 	out_file = open(output_file,'a')
-	if debug_info == "true":
-        	debug_file = open(deb_file,'a')
-		debug_file.write("-------------------------------------\n")
-		debug_file.write("DUMP VARIABLES\n")
-		debug_file.write("-------------------------------------\n")
-		debug_file.write("to_move:\n")
-		debug_file.write(pretty(to_move))
-		debug_file.write("\nlist subs:\n")
-		debug_file.write(pretty(dict_subs))
-		debug_file.write("\nlist files:\n")
-		debug_file.write(pretty(dict_files))
-		debug_file.write("\ndel list:\n")
-		debug_file.write(pretty(del_list)+'\n')
+	LOGGER.debug("-------------------------------------\n")
+	LOGGER.debug("DUMP VARIABLES\n")
+	LOGGER.debug("-------------------------------------\n")
+	LOGGER.debug("to_move:\n")
+	LOGGER.debug(pretty(to_move))
+	LOGGER.debug("\nlist subs:\n")
+	LOGGER.debug(pretty(dict_subs))
+	LOGGER.debug("\nlist files:\n")
+	LOGGER.debug(pretty(dict_files))
+	LOGGER.debug("\ndel list:\n")
+	LOGGER.debug(pretty(del_list)+'\n')
 	for episode in to_move:
 		videofile = dict_files[episode]
 		if dict_subs[episode].split('.')[-1] == 'zip':
@@ -131,19 +110,18 @@ def main():
 		mkdir_p(destination)
 		shutil.move(sub_extracted, destination+'/'+'.'.join(videofile.split('/')[-1].split('.')[:-1])+'.'+sub_extracted.split('.')[-1])
 		#os.chmod(destination+'/'+'.'.join(videofile.split('/')[-1].split('.')[:-1])+'.'+sub_extracted.split('.')[-1], 0660)
-		if debug_info == "true":
-			debug_file.write("shutil.move(%s, %s/%s)\n" % (videofile, destination, videofile.split('/')[-1]))
+		LOGGER.debug("shutil.move(%s, %s/%s)\n" % (videofile, destination, videofile.split('/')[-1]))
                 shutil.move(videofile, destination+'/'+videofile.split('/')[-1])
-		out_file.write("PUNTATA COPIATA: %s\n" % videofile)
+                output_string = "PUNTATA COPIATA: %s\n" % videofile
+		out_file.write(output_string)
+                LOGGER.info(output_string)
                 if args.bot_key and args.target_msg:
                     bot.sendMessage(args.target_msg, "PUNTATA COPIATA: %s\n" % videofile)
 		if os.path.dirname(videofile) in del_list:
-			if debug_info == "true":
-				debug_file.write("shutil.rmtree(%s)\n" % os.path.dirname(videofile))
+			LOGGER.debug("shutil.rmtree(%s)\n" % os.path.dirname(videofile))
 			shutil.rmtree(os.path.dirname(videofile))
 	out_file.close()
-	if debug_info == "true":
-		debug_file.close()
 
 if __name__ == "__main__":
+        setup_logging()
 	main()
