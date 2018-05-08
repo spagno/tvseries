@@ -15,7 +15,8 @@ class Formatter(object):
     def __call__(self, value, **args):
         for key in args:
             setattr(self, key, args[key])
-        formater = self.types[type(value) if type(value) in self.types else object]
+        formater = self.types[type(value) if type(
+            value) in self.types else object]
         return formater(self, value, self.indent)
 
     def format_object(self, value, indent):
@@ -25,7 +26,7 @@ class Formatter(object):
         items = [
             self.lfchar + self.htchar * (indent + 1) + repr(key) + ': ' +
             (self.types[type(value[key]) if type(value[key]) in self.types else object])(self, value[key], indent + 1
-)
+                                                                                         )
             for key in value
         ]
         return '{%s}' % (','.join(items) + self.lfchar + self.htchar * indent)
@@ -33,7 +34,7 @@ class Formatter(object):
     def format_list(self, value, indent):
         items = [
             self.lfchar + self.htchar * (indent + 1) + (self.types[type(item) if type(item) in self.types else object
-])(self, item, indent + 1)
+                                                                   ])(self, item, indent + 1)
             for item in value
         ]
         return '[%s]' % (','.join(items) + self.lfchar + self.htchar * indent)
@@ -41,7 +42,7 @@ class Formatter(object):
     def format_tuple(self, value, indent):
         items = [
             self.lfchar + self.htchar * (indent + 1) + (self.types[type(item) if type(item) in self.types else object
-])(self, item, indent + 1)
+                                                                   ])(self, item, indent + 1)
             for item in value
         ]
         return '(%s)' % (','.join(items) + self.lfchar + self.htchar * indent)
