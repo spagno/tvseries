@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import argparse
+import configparser
 import errno
 import json
 import logging
@@ -9,7 +10,6 @@ import re
 import shutil
 import sys
 import zipfile
-import configparser
 from formatter import Formatter
 
 import telepot
@@ -82,24 +82,29 @@ def mkdir_p(path):
             raise
 
 
-def check_config(config, args):
+def check_config(config, local_config, args):
     for key in config["telegram"]:
-        if key in args.__dict__ and args.__dict__[key] :
+        if "telegram" in local_config.sections():
+            if key in local_config["telegram"] and local_config["telegram"][key]:
+                config["telegram"][key] = local_config["telegram"][key]
+        if key in args.__dict__ and args.__dict__[key]:
             config["telegram"][key] = args.__dict__[key]
     return config
+
 
 def main():
     config = configparser.ConfigParser()
     config.read('config.ini')
+    local_config = configparser.ConfigParser()
+    local_config.read('config.local.ini')
     parser = argparse.ArgumentParser()
     parser.add_argument('--bot_key', action='store',
                         dest='bot_key', help='Telegram Bot Key')
     parser.add_argument('--target', action='store',
                         dest='target', help='Who will receive the messages')
     args = parser.parse_args()
-    overrided_config = check_config(config, args)
-    if args.bot_key and args.target:
-        bot = telepot.Bot(args.bot_key)
+    overrided_config = check_config(config, local_config, args)
+    bot = telepot.Bot(overrided_config["telegram"]["bot_key"])
     (subs_list, dict_subs, _) = scan_dirs(dir_subs)
     (files_list, dict_files, del_list) = scan_dirs(dir_files, 1)
     pretty = Formatter()
@@ -136,9 +141,8 @@ def main():
         output_string = "PUNTATA COPIATA: %s\n" % videofile
         out_file.write(output_string)
         LOGGER.info(output_string)
-        if args.bot_key and args.target:
-            bot.sendMessage(args.target,
-                            "PUNTATA COPIATA: %s\n" % videofile)
+        bot.sendMessage(
+            overrided_config["telegram"]["target"], "PUNTATA COPIATA: %s\n" % videofile)
         if os.path.dirname(videofile) in del_list:
             LOGGER.debug("shutil.rmtree(%s)\n" % os.path.dirname(videofile))
             shutil.rmtree(os.path.dirname(videofile))
