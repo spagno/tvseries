@@ -9,6 +9,7 @@ import re
 import shutil
 import sys
 import zipfile
+import configparser
 from formatter import Formatter
 
 import telepot
@@ -81,14 +82,23 @@ def mkdir_p(path):
             raise
 
 
+def check_config(config, args):
+    for key in config["telegram"]:
+        if key in args.__dict__ and args.__dict__[key] :
+            config["telegram"][key] = args.__dict__[key]
+    return config
+
 def main():
+    config = configparser.ConfigParser()
+    config.read('config.ini')
     parser = argparse.ArgumentParser()
     parser.add_argument('--bot_key', action='store',
                         dest='bot_key', help='Telegram Bot Key')
     parser.add_argument('--target', action='store',
-                        dest='target_msg', help='Who will receive the messages')
+                        dest='target', help='Who will receive the messages')
     args = parser.parse_args()
-    if args.bot_key and args.target_msg:
+    overrided_config = check_config(config, args)
+    if args.bot_key and args.target:
         bot = telepot.Bot(args.bot_key)
     (subs_list, dict_subs, _) = scan_dirs(dir_subs)
     (files_list, dict_files, del_list) = scan_dirs(dir_files, 1)
@@ -119,15 +129,15 @@ def main():
         mkdir_p(destination)
         shutil.move(sub_extracted, destination+'/'+'.'.join(videofile.split('/')
                                                             [-1].split('.')[:-1])+'.'+sub_extracted.split('.')[-1])
-        #os.chmod(destination+'/'+'.'.join(videofile.split('/')[-1].split('.')[:-1])+'.'+sub_extracted.split('.')[-1], 0660)
+        # os.chmod(destination+'/'+'.'.join(videofile.split('/')[-1].split('.')[:-1])+'.'+sub_extracted.split('.')[-1], 0660)
         LOGGER.debug("shutil.move(%s, %s/%s)\n" %
                      (videofile, destination, videofile.split('/')[-1]))
         shutil.move(videofile, destination+'/'+videofile.split('/')[-1])
         output_string = "PUNTATA COPIATA: %s\n" % videofile
         out_file.write(output_string)
         LOGGER.info(output_string)
-        if args.bot_key and args.target_msg:
-            bot.sendMessage(args.target_msg,
+        if args.bot_key and args.target:
+            bot.sendMessage(args.target,
                             "PUNTATA COPIATA: %s\n" % videofile)
         if os.path.dirname(videofile) in del_list:
             LOGGER.debug("shutil.rmtree(%s)\n" % os.path.dirname(videofile))
