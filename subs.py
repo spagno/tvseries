@@ -103,24 +103,17 @@ def main():
     parser.add_argument('--target', action='store',
                         dest='target', help='Who will receive the messages')
     args = parser.parse_args()
+    pretty = Formatter()
     overrided_config = check_config(config, local_config, args)
+    LOGGER.debug("\n-------------------------------------\nDUMP CONFIG\n-------------------------------------\n%s" %
+                 pretty(overrided_config.__dict__))
     bot = telepot.Bot(overrided_config["telegram"]["bot_key"])
     (subs_list, dict_subs, _) = scan_dirs(dir_subs)
     (files_list, dict_files, del_list) = scan_dirs(dir_files, 1)
-    pretty = Formatter()
     to_move = set(files_list).intersection(set(subs_list))
     out_file = open(output_file, 'a')
-    LOGGER.debug("-------------------------------------\n")
-    LOGGER.debug("DUMP VARIABLES\n")
-    LOGGER.debug("-------------------------------------\n")
-    LOGGER.debug("to_move:\n")
-    LOGGER.debug(pretty(to_move))
-    LOGGER.debug("\nlist subs:\n")
-    LOGGER.debug(pretty(dict_subs))
-    LOGGER.debug("\nlist files:\n")
-    LOGGER.debug(pretty(dict_files))
-    LOGGER.debug("\ndel list:\n")
-    LOGGER.debug(pretty(del_list)+'\n')
+    LOGGER.debug("\n-------------------------------------\nDUMP VARIABLES\n-------------------------------------\nto_move:\n%s\nlist subs:\n%s\nlist files:\n%s\ndel list:\n%s\n" %
+                 (pretty(to_move), pretty(dict_subs), pretty(dict_files), pretty(del_list)))
     for episode in to_move:
         videofile = dict_files[episode]
         if dict_subs[episode].split('.')[-1] == 'zip':
