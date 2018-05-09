@@ -1,3 +1,3 @@
-logs/
+logs/*.log
 *.pyc
 config.local.ini
